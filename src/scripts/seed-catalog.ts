@@ -99,6 +99,7 @@ async function main() {
     updated: 0,
     failed: [] as string[],
     imagesUploaded: 0,
+    imagesLinked: 0,
     missingFiles: [] as string[],
   };
 
@@ -128,8 +129,18 @@ async function main() {
       const imagePaths: string[] = Array.isArray(entry.images) ? entry.images : [];
       if (product.images.length > 0) {
         if (imagePaths.length > 0) console.log(`  · ${slug}: ya tiene imágenes, no se sube nada`);
-      } else if (cloudinaryReady) {
+      } else {
         for (const relative of imagePaths) {
+          // Una URL ya alojada (estáticos del propio deploy) se guarda tal cual. El prefijo
+          // "static/" le dice al borrado que no hay nada que destruir en Cloudinary.
+          if (/^https?:\/\//.test(relative)) {
+            const name = relative.split("/").pop() || relative;
+            product.images.push({ url: relative, publicId: `static/${name}` });
+            summary.imagesLinked += 1;
+            console.log(`  ⇢ ${slug}: ${relative}`);
+            continue;
+          }
+          if (!cloudinaryReady) continue;
           const absolute = path.resolve(baseDir, relative);
           if (!fs.existsSync(absolute)) {
             console.warn(`  ⚠ ${slug}: no existe el archivo ${relative}`);
@@ -161,6 +172,7 @@ async function main() {
   console.log(`Creados:           ${summary.created}`);
   console.log(`Actualizados:      ${summary.updated}`);
   console.log(`Imágenes subidas:  ${summary.imagesUploaded}`);
+  console.log(`Imágenes enlazadas: ${summary.imagesLinked}`);
   console.log(`Archivos faltantes: ${summary.missingFiles.length}`);
   for (const missing of summary.missingFiles) console.log(`  - ${missing}`);
   if (summary.failed.length > 0) {
