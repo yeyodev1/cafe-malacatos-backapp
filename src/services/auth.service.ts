@@ -60,6 +60,41 @@ export async function login(
   return { token: signToken(user), user: sanitize(user) };
 }
 
+/**
+ * Registro de compradores. Siempre crea cuentas `customer`: el rol no se
+ * acepta del body. Responde igual que el login para que el frontend quede
+ * con la sesión abierta.
+ */
+export async function register(input: {
+  name: string;
+  email: string;
+  password: string;
+  phone: string;
+}): Promise<{ token: string; user: SessionUser }> {
+  requireDb();
+  const name = input.name.trim();
+  const email = input.email.toLowerCase().trim();
+  if (!name) throw new CustomError("Escribe tu nombre", 400);
+  if (!EMAIL.test(email)) throw new CustomError("Correo inválido", 400);
+  if (input.password.length < 8) {
+    throw new CustomError("La contraseña debe tener al menos 8 caracteres", 400);
+  }
+  if (await User.exists({ email })) {
+    throw new CustomError("Ya existe una cuenta con ese correo", 409);
+  }
+
+  const user = await User.create({
+    email,
+    password: input.password,
+    name,
+    phone: input.phone.trim(),
+    accountType: "customer",
+    lastLoginAt: new Date(),
+  });
+
+  return { token: signToken(user), user: sanitize(user) };
+}
+
 export async function findById(id: string): Promise<SessionUser> {
   requireDb();
   const user = await User.findById(id);
