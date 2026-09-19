@@ -324,6 +324,16 @@ export async function removeImage(id: string, publicId: string) {
   const image = product.images.find((item) => item.publicId === publicId);
   if (!image) throw new CustomError("Esa imagen no pertenece al producto", 404);
 
+  // Las imágenes "static/" son archivos del propio deploy: no existen en Cloudinary.
+  if (publicId.startsWith("static/")) {
+    product.set(
+      "images",
+      product.images.filter((item) => item.publicId !== publicId),
+    );
+    await product.save();
+    return product;
+  }
+
   await deleteImage(publicId).catch((error) => {
     if (error instanceof CustomError) throw error;
     throw new CustomError(
